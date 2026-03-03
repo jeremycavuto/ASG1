@@ -10,9 +10,18 @@
 
 enum sizeConstants {
   MAXSTRINGLENGTH = 128,
-  BUFSIZE = 512,
+  BUFSIZE = 1024,
+  MAXHOSTS = 10,
+  IPSTRINGLENGTH = 16,
+  PORTSTRINGLENGTH = 6
 };
 static const int MAXPENDING = 5; // Maximum outstanding connection requests
+
+typedef struct{
+    char machines[MAXHOSTS][IPSTRINGLENGTH];
+    int count;
+}machineIPS;
+
 
 //From DieWithUserMessage.c
 void DieWithUserMessage(const char *msg, const char *detail) {
@@ -206,15 +215,13 @@ int SetupTCPClientSocket(const char *host, const char *service) {
 }
 
 
-typedef struct{
-    char machines[4][16];
-}machineIPS;
-
-
 int main(int argc, char *argv[]){
+
     bool firstMachine = false;
-    in_port_t port = 0;
-    char dest_ip[16] = "";
+
+
+    char portstr[PORTSTRINGLENGTH] = "";
+    char dest_ip[IPSTRINGLENGTH] = "";
 
     int opt;
 
@@ -224,14 +231,26 @@ int main(int argc, char *argv[]){
         if(opt == 'S')
             firstMachine = true;
         else if(opt == 'p')
-            port = atoi(optarg);
+            strncpy(portstr, optarg, sizeof(portstr) - 1);
         else if(opt == 'i')
             strncpy(dest_ip, optarg, 15);
     }
 
-    if(firstMachine){
-        strcpy(ipaddressesOfMachines.machines[1], dest_ip);
+    if(strlen(portstr) == 0){
+      DieWithUserMessage("Missing port", "-p {1-65535} in CLA");
     }
+    if(strlen(dest_ip) == 0){
+      DieWithUserMessage("Missing destination IP Address", "-i {ip_address} in CLA");
+    }
+
+    int portnum = atoi(portstr);
+    if(portnum > 65535 || portnum < 0){
+      DieWithUserMessage("Port out of range", "-p {1-65535} in CLA");
+    }
+
+    machineIPS iplist;
+    memset(&iplist, 0, sizeof(iplist));
+
 
     if(!firstMachine){
        int servSock = SetupTCPServerSocket(9292);
